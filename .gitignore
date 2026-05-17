@@ -1,0 +1,19 @@
+﻿# Python environment
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+ENV/
+
+# Databases & local state
+chroma_db/
+legal_kg.json
+interactive_graph.html
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db

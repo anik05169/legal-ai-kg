@@ -1,0 +1,20 @@
+# Extraction Models
+gliner
+glirel
+
+# Graph Data Structure
+networkx
+
+# Vector Database & Embeddings
+chromadb
+sentence-transformers
+
+# LLM Generation
+openai
+
+# Hugging Face Datasets
+datasets
+
+# Web Backend
+fastapi
+uvicorn

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal AI GraphRAG Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <!-- Landing / Loading State -->
+    <div id="landing-state" class="state-container active">
+        <div class="glass-card text-center">
+            <h1 class="hero-title">Legal AI <span class="text-accent">GraphRAG</span></h1>
+            <p class="hero-subtitle">Bidirectional Graph-Vector Engine for Complex Contracts</p>
+            
+            <button id="start-demo-btn" class="btn-primary glow">Start Analysis Demo</button>
+            
+            <div id="loading-indicator" class="hidden">
+                <div class="spinner"></div>
+                <p id="progress-text" class="mt-2 text-accent" style="font-weight: 500;">Initializing pipeline...</p>
+                <p class="text-xs text-muted">(This may take a minute depending on your hardware)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard State -->
+    <div id="dashboard-state" class="state-container hidden">
+        <nav class="topbar glass-panel">
+            <div class="brand">Legal AI <span class="text-accent">GraphRAG</span></div>
+            <div class="tab-controls">
+                <button class="tab-btn active" data-tab="graph-view">Knowledge Graph</button>
+                <button class="tab-btn" data-tab="contract-view">Original Contract</button>
+                <button class="tab-btn" data-tab="chat-view">QA Chat</button>
+            </div>
+        </nav>
+
+        <main class="content-area">
+            <!-- Graph Tab -->
+            <section id="graph-view" class="tab-content active">
+                <div class="glass-panel full-height no-padding relative">
+                    <iframe id="graph-iframe" src="" title="Knowledge Graph"></iframe>
+                    <div class="overlay-badge">Interactive PyVis Graph</div>
+                </div>
+            </section>
+
+            <!-- Contract Tab -->
+            <section id="contract-view" class="tab-content hidden">
+                <div class="glass-panel full-height scrollable">
+                    <h2 class="mb-2">Document Source</h2>
+                    <pre id="raw-contract-text" class="contract-text">Loading...</pre>
+                </div>
+            </section>
+
+            <!-- Chat Tab -->
+            <section id="chat-view" class="tab-content hidden">
+                <div class="chat-layout glass-panel">
+                    <div id="chat-messages" class="messages-container">
+                        <div class="message bot">
+                            <div class="avatar">🤖</div>
+                            <div class="bubble">
+                                <p>Analysis complete! I've indexed the contract and extracted the knowledge graph. What would you like to know?</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-container">
+                        <input type="text" id="query-input" placeholder="Ask about liabilities, terms, or specific entities..." autocomplete="off">
+                        <button id="send-btn" class="btn-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button id="end-chat-btn" class="btn-danger ml-2" title="End Chat">End</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
