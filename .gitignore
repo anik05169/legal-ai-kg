@@ -1,4 +1,4 @@
-﻿# Python environment
+# Python environment
 __pycache__/
 *.py[cod]
 *.class
@@ -13,6 +13,9 @@ interactive_graph.html
 
 # Environment files
 .env
+
+# AI assistant context (local only)
+CONTEXT.md
 
 # OS files
 .DS_Store
