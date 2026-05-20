@@ -10,8 +10,8 @@ from gliner import GLiNER
 from glirel import GLiREL
 import spacy
 
-import config
-from data_loader import get_cuad_contracts
+from . import config
+from .data_loader import get_cuad_contracts
 
 # ==========================================
 # 🛠️ HELPER FUNCTIONS

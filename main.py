@@ -1,7 +1,7 @@
 import sys
-from kg_indexer import build_infrastructure
-from visualize_kg import generate_interactive_graph
-from rag_pipeline import LegalGraphRAG
+from core.kg_indexer import build_infrastructure
+from core.visualize_kg import generate_interactive_graph
+from core.rag_pipeline import LegalGraphRAG
 
 def main():
     print("==================================================")

@@ -1,7 +1,7 @@
 import json
 import networkx as nx
 from pyvis.network import Network
-import config
+from . import config
 
 # Define a beautiful color palette for your legal entities
 COLOR_MAP = {

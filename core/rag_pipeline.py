@@ -5,9 +5,9 @@ import torch
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 
-import config
-from data_loader import get_cuad_contracts
-from kg_indexer import build_infrastructure
+from . import config
+from .data_loader import get_cuad_contracts
+from .kg_indexer import build_infrastructure
 
 class LegalGraphRAG:
     def __init__(self):

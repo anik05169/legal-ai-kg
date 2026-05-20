@@ -5,10 +5,10 @@ from pydantic import BaseModel
 import os
 import json
 
-from kg_indexer import build_infrastructure
-from visualize_kg import generate_interactive_graph
-from rag_pipeline import LegalGraphRAG
-from data_loader import get_cuad_contracts
+from core.kg_indexer import build_infrastructure
+from core.visualize_kg import generate_interactive_graph
+from core.rag_pipeline import LegalGraphRAG
+from core.data_loader import get_cuad_contracts
 
 app = FastAPI(title="Legal AI GraphRAG API")
 
