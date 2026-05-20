@@ -26,12 +26,21 @@ class LegalGraphRAG:
         self.llm_client = OpenAI(api_key=config.OPENAI_API_KEY)
         print("✅ Engine Ready!\n")
 
-    def answer_query(self, query):
+    def answer_query(self, query, chat_history=None):
+        """
+        Answer a user query using hybrid Graph + Vector retrieval.
+        
+        Args:
+            query: The user's natural language question.
+            chat_history: Optional list of prior conversation turns.
+                          Each entry is a dict with 'role' ('user'|'assistant') and 'content'.
+                          Used to give the LLM conversational memory for follow-up questions.
+        """
         # --- 1. SEMANTIC VECTOR SEARCH ---
         query_embedding = self.embedder.encode([query]).tolist()
         results = self.collection.query(
             query_embeddings=query_embedding,
-            n_results=5, # Top 4 chunks is usually a sweet spot
+            n_results=5, # Top 5 chunks is usually a sweet spot
             include=["metadatas", "documents"]
         )
         
@@ -88,7 +97,7 @@ class LegalGraphRAG:
 
         # --- 4. SECONDARY GRAPH RETRIEVAL ---
         # Fetch chunks discovered via the Graph that weren't in our Semantic Search
-        # We limit to 3 to prevent overloading the LLM context window
+        # We limit to 4 to prevent overloading the LLM context window
         new_chunk_ids = list(expanded_chunk_ids - retrieved_chunk_ids)[:4]
         graph_expanded_texts = []
         
@@ -110,7 +119,7 @@ class LegalGraphRAG:
             
         final_context = "\n\n".join(context_blocks)
         
-        # --- 4. LLM GENERATION (Natural, Conversational Prompt) ---
+        # --- 6. LLM GENERATION (Conversational with Memory) ---
         system_prompt = (
             "You are an expert legal AI assistant. Your job is to answer the user's question clearly "
             "and naturally using ONLY the provided context.\n"
@@ -118,16 +127,25 @@ class LegalGraphRAG:
             "1. Read the provided KNOWLEDGE GRAPH FACTS and LEGAL TEXT EXCERPTS.\n"
             "2. Answer in a helpful, conversational tone. You may explain the context around the answer.\n"
             "3. If the answer is not in the text, simply state that the provided document does not contain the answer.\n"
-            "4. Do not provide external legal advice or hallucinate outside knowledge."
+            "4. Do not provide external legal advice or hallucinate outside knowledge.\n"
+            "5. You have access to the conversation history below. Use it to resolve pronouns, "
+            "follow-up references, and maintain continuity (e.g. 'What about its termination clause?')."
         )
+        
+        # Build the messages array: system → history → current query+context
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Inject prior conversation turns (capped at the last 10 exchanges to stay within token limits)
+        if chat_history:
+            for turn in chat_history[-10:]:
+                messages.append({"role": turn["role"], "content": turn["content"]})
+        
+        messages.append({"role": "user", "content": f"CONTEXT:\n{final_context}\n\nQUERY: {query}"})
         
         response = self.llm_client.chat.completions.create(
             model=config.OPENAI_MODEL,
             temperature=0.2, # Slight temperature bump so it sounds natural but stays accurate
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"CONTEXT:\n{final_context}\n\nQUERY: {query}"}
-            ]
+            messages=messages
         )
         return response.choices[0].message.content.strip(), retrieved_texts + graph_expanded_texts, list(extracted_triples)
 

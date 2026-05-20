@@ -22,6 +22,9 @@ def main():
     
     print("\n✅ System Ready! Ask your questions below (type 'exit' or 'quit' to stop).")
     
+    # Conversation memory for the CLI session
+    chat_history = []
+    
     while True:
         try:
             query = input("\n🤔 Enter your question: ").strip()
@@ -32,7 +35,11 @@ def main():
                 continue
                 
             print("\n⚙️ Processing query...")
-            answer, contexts, triplets = engine.answer_query(query)
+            answer, contexts, triplets = engine.answer_query(query, chat_history=chat_history)
+            
+            # Persist this exchange into local session memory
+            chat_history.append({"role": "user", "content": query})
+            chat_history.append({"role": "assistant", "content": answer})
             
             print("\n" + "="*60)
             print("🧩 [EXTRACTED KNOWLEDGE GRAPH TRIPLETS]")

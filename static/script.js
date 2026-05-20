@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const endChatBtn = document.getElementById('end-chat-btn');
 
+    // Session ID for conversation memory (assigned after pipeline build)
+    let sessionId = null;
+
     // 1. Start Demo / Build Pipeline
     startBtn.addEventListener('click', () => {
         startBtn.classList.add('hidden');
@@ -40,6 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Set Iframe source to load the generated graph
                     graphIframe.src = '/api/graph.html';
+
+                    // Create a chat session for conversation memory
+                    fetch('/api/session', { method: 'POST' })
+                        .then(r => r.json())
+                        .then(d => { sessionId = d.session_id; })
+                        .catch(() => { /* session will be auto-created server-side */ });
 
                     // Transition to dashboard
                     landingState.classList.add('hidden');
@@ -155,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query, session_id: sessionId })
             });
             
             const data = await response.json();
