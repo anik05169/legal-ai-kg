@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Automatically load environment variables from .env
+load_dotenv()
 
 # --- CREDENTIALS ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

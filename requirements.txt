@@ -18,3 +18,7 @@ datasets
 # Web Backend
 fastapi
 uvicorn
+
+# Logging & Environment
+loguru
+python-dotenv
