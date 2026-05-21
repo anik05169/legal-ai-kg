@@ -1,9 +1,11 @@
 # Extraction Models
 gliner
 glirel
+spacy
 
 # Graph Data Structure
 networkx
+pyvis
 
 # Vector Database & Embeddings
 chromadb
