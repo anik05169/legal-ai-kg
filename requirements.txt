@@ -24,4 +24,4 @@ uvicorn
 # Logging & Environment
 loguru
 python-dotenv
-huggingface_hub<0.25.0
+huggingface_hub
