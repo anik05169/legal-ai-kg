@@ -1,6 +1,7 @@
 import os
 import uuid
 import torch
+import certifi
 from datasets import load_dataset
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
@@ -46,7 +47,7 @@ def main():
     embedder = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
 
     print("\n📥 Connecting to MongoDB Atlas cluster...")
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
 
