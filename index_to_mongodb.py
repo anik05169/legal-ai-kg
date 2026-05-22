@@ -56,7 +56,7 @@ def main():
     collection.delete_many({})
 
     print("\n📥 Loading CUAD dataset from Hugging Face...")
-    dataset = load_dataset("theatticusproject/cuad-qa", split="train")
+    dataset = load_dataset("theatticusproject/cuad-qa", split="train", trust_remote_code=True)
     
     # Extract unique legal contracts
     unique_contracts = list(set(dataset["context"]))

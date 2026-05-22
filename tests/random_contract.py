@@ -5,7 +5,7 @@ def preview_random_contract():
     print("📥 Downloading/Loading CUAD dataset...")
     
     # Updated to use the reliable path from your data loader!
-    dataset = load_dataset("theatticusproject/cuad-qa", split="train")
+    dataset = load_dataset("theatticusproject/cuad-qa", split="train", trust_remote_code=True)
 
     print("🧠 Grouping questions by contract...")
     contracts_dict = {}
