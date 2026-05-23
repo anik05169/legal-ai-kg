@@ -2,9 +2,9 @@ import os
 import uuid
 import torch
 import certifi
-from datasets import load_dataset
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
+from core.data_loader import load_cuad_dataset
 
 # =====================================================================
 # ⚙️ CONFIGURATION
@@ -55,8 +55,8 @@ def main():
     print("🧹 Wiping clean old documents in cloud collection...")
     collection.delete_many({})
 
-    print("\n📥 Loading CUAD dataset from Hugging Face...")
-    dataset = load_dataset("theatticusproject/cuad-qa", split="train", trust_remote_code=True)
+    print("\n📥 Loading CUAD dataset...")
+    dataset = load_cuad_dataset()
     
     # Extract unique legal contracts
     unique_contracts = list(set(dataset["context"]))

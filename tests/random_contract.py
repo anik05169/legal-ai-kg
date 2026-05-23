@@ -1,11 +1,10 @@
-from datasets import load_dataset
+from core.data_loader import load_cuad_dataset
 import random
 
 def preview_random_contract():
     print("📥 Downloading/Loading CUAD dataset...")
     
-    # Updated to use the reliable path from your data loader!
-    dataset = load_dataset("theatticusproject/cuad-qa", split="train", trust_remote_code=True)
+    dataset = load_cuad_dataset()
 
     print("🧠 Grouping questions by contract...")
     contracts_dict = {}
