@@ -7,9 +7,21 @@ Usage:
     from core import LegalGraphRAG, build_infrastructure, generate_interactive_graph
 """
 
-from .rag_pipeline import LegalGraphRAG
-from .kg_indexer import build_infrastructure
-from .visualize_kg import generate_interactive_graph
+try:
+    from .rag_pipeline import LegalGraphRAG
+except ImportError:
+    LegalGraphRAG = None
+
+try:
+    from .kg_indexer import build_infrastructure
+except ImportError:
+    build_infrastructure = None
+
+try:
+    from .visualize_kg import generate_interactive_graph
+except ImportError:
+    generate_interactive_graph = None
+
 from .data_loader import get_cuad_contracts
 
 __all__ = [
@@ -18,3 +30,4 @@ __all__ = [
     "generate_interactive_graph",
     "get_cuad_contracts",
 ]
+
