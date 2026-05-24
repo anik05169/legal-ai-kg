@@ -30,10 +30,11 @@ jobs:
         path: ~/.cache/huggingface
         key: ${{ runner.os }}-hf-models
 
-    - name: Run Indexing Script
+    - name: Run Recall Diagnostics Script
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: |
-        python index_to_mongodb.py
+        python inspect_recall.py
+
 
 
