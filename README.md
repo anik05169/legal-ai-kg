@@ -99,3 +99,23 @@ python main.py
    In `rag_pipeline.py`, the retrieval engine first searches vector space (ChromaDB) for the query, and then cross-checks matching entities against the graph. It retrieves structural nodes and *hops* back into the vector database to pull passages that contain relevant relations, even if those passages didn't rank high in direct semantic search.
 3. **Immersive Glassmorphic UI**:
    The dashboard implements stunning web elements—including translucent glass containers, customizable chat avatars, smooth hover scaling, and an interactive accordion panel revealing the detailed GraphRAG vector extraction details behind every response.
+
+---
+
+## 🛠️ Technology Stack & Dependencies
+
+At the core of this GraphRAG engine is a curated suite of state-of-the-art technologies, listed below with their primary role:
+
+* **MongoDB Atlas Vector Search** - Cloud-hosted vector database used for highly scalable semantic similarity search and document retrieval.
+* **OpenAI GPT-4o-Mini** - High-performance large language model (LLM) serving as the central reasoning engine to generate grounded, factually-accurate legal answers.
+* **BAAI/bge-small-en-v1.5** - High-performance sentence embedding model producing dense 384-dimensional semantic vectors.
+* **GLiNER** - Advanced zero-shot named entity recognition (NER) model extracting flexible, open-vocabulary legal entities from text.
+* **GLiREL** - Zero-shot relation extraction model identifying structural and contextual connections between entities.
+* **NetworkX** - Powerful network modeling library managing the structure, nodes, and relational edges of the Knowledge Graph.
+* **PyVis** - Interactive visualization library generating dark-themed, physics-simulated HTML dynamic graphs.
+* **FastAPI** - High-performance, modern Python web framework powering the backend API and server-sent progress events.
+* **GitHub Actions** - Serverless automation engine executing automated indexing pipelines and benchmark workflows in the cloud.
+* **ChromaDB** - Lightweight, local serverless vector database used as the primary offline embedding store.
+* **Sentence Transformers** - PyTorch-based framework simplifying the generation of dense vector embeddings from chunked contract texts.
+
+
