@@ -30,9 +30,10 @@ jobs:
         path: ~/.cache/huggingface
         key: ${{ runner.os }}-hf-models
 
-    - name: Run Benchmarking & Indexing Script
+    - name: Run Indexing Script
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: |
-        python benchmark.py
+        python index_to_mongodb.py
+
 
