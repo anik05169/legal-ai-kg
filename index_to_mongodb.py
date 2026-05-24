@@ -16,7 +16,7 @@ COLLECTION_NAME = "chunks"
 
 CHUNK_SIZE = 150  # Words per chunk
 OVERLAP = 30      # Overlapping words between chunks
-NUM_CONTRACTS = 5 # Number of unique CUAD contracts to index
+NUM_CONTRACTS = 500 # Number of unique CUAD contracts to index
 
 # =====================================================================
 # 🛠️ HELPER FUNCTIONS
