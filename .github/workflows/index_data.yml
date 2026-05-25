@@ -1,11 +1,25 @@
-name: Index CUAD to MongoDB Atlas
+name: Legal AI — Evaluate Retrieval
 
 on:
-  # Allows you to run this workflow manually from the Actions tab on GitHub
+  # Manual trigger from the Actions tab on GitHub
   workflow_dispatch:
+    inputs:
+      samples:
+        description: "Number of QA pairs to evaluate"
+        required: false
+        default: "100"
+      mode:
+        description: "Query mode (raw / clean / both)"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - both
+          - raw
+          - clean
 
 jobs:
-  index-to-cloud-db:
+  evaluate-retrieval:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +35,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install "pymongo[srv]" "datasets<3.0" sentence-transformers torch certifi
+        pip install -r requirements.txt
 
     # Cache Hugging Face models so that subsequent runs are extremely fast
     - name: Cache Hugging Face models
@@ -30,11 +44,18 @@ jobs:
         path: ~/.cache/huggingface
         key: ${{ runner.os }}-hf-models
 
-    - name: Run Recall Diagnostics Script
+    - name: Run Retrieval Evaluation
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: |
-        python inspect_recall.py
+        python evaluate_retrieval.py \
+          --samples ${{ github.event.inputs.samples }} \
+          --mode ${{ github.event.inputs.mode }}
 
-
-
+    - name: Upload evaluation report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: retrieval-eval-report
+        path: reports/
+        retention-days: 30

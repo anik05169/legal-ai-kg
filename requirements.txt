@@ -11,6 +11,13 @@ pyvis
 chromadb
 sentence-transformers
 
+# MongoDB Atlas
+pymongo[srv]
+certifi
+
+# PyTorch (CPU-only is fine for CI)
+torch
+
 # LLM Generation
 openai
 
