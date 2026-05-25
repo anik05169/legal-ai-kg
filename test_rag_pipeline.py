@@ -9,6 +9,13 @@ from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 
+# --- FORCE IPV4 ONLY (Bypasses broken IPv6 routing) ---
+import socket
+orig_getaddrinfo = socket.getaddrinfo
+def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = patched_getaddrinfo
+
 # Add parent directory to path to ensure configs can be loaded if needed
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core import config
