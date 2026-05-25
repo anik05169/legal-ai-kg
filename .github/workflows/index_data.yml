@@ -41,14 +41,12 @@ jobs:
         path: ~/.cache/huggingface
         key: ${{ runner.os }}-hf-models
 
-    # ============================================================
-    # INDEX DATA (Clears DB and indexes all CUAD contracts)
-    # ============================================================
-    - name: Clear and Re-Index MongoDB Atlas
+    - name: Groq diagnostics
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       run: |
-        python index_to_mongodb.py
+        python diagnose_groq.py
 
     # ============================================================
     # TEST RAG PIPELINE WITH USER QUERY (GROQ LLM)
