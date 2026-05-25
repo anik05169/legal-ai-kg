@@ -23,8 +23,11 @@ class LegalGraphRAG:
         with open(config.GRAPH_PATH, "r", encoding="utf-8") as f:
             self.G = nx.node_link_graph(json.load(f))
             
-        self.llm_client = OpenAI(api_key=config.OPENAI_API_KEY)
-        print("✅ Engine Ready!\n")
+        self.llm_client = OpenAI(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=config.GROQ_API_KEY
+        )
+        print("✅ Engine Ready (using Groq)!\n")
 
     def answer_query(self, query, chat_history=None):
         """
@@ -143,7 +146,7 @@ class LegalGraphRAG:
         messages.append({"role": "user", "content": f"CONTEXT:\n{final_context}\n\nQUERY: {query}"})
         
         response = self.llm_client.chat.completions.create(
-            model=config.OPENAI_MODEL,
+            model=config.GROQ_MODEL,
             temperature=0.2, # Slight temperature bump so it sounds natural but stays accurate
             messages=messages
         )

@@ -7,6 +7,10 @@ on:
         description: "Number of evaluation queries"
         required: false
         default: "100"
+      query:
+        description: "Test query to run against RAG pipeline"
+        required: false
+        default: "what is breach of contract"
 
 jobs:
   retrieval-pipeline:
@@ -69,6 +73,17 @@ jobs:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: |
         python evaluate_retrieval_minimal.py
+
+    # ============================================================
+    # TEST RAG PIPELINE WITH USER QUERY (GROQ)
+    # ============================================================
+
+    - name: Run RAG Pipeline Test Query
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      run: |
+        python test_rag_pipeline.py --query "${{ github.event.inputs.query }}"
 
     # ============================================================
     # OPTIONAL REPORT UPLOAD
