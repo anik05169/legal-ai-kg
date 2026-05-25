@@ -63,7 +63,9 @@ INDEX_NAME     = "vector_index"
 EMBED_MODEL    = "BAAI/bge-small-en-v1.5"
 
 # CUAD clause categories are encoded in the question ID as "<title>__<category>_<n>"
-_CATEGORY_RE = re.compile(r"__(.+?)_\d+$")
+# Some IDs may use different separators; try multiple patterns.
+_CATEGORY_RE = re.compile(r"__(.+?)(?:_\d+|$)")
+_CATEGORY_FALLBACK_RE = re.compile(r"/(.+?)(?:_\d+)?$")
 
 
 # =====================================================================
@@ -79,25 +81,63 @@ def _load_env_uri() -> str:
     return uri
 
 
+def normalize_ws(text: str) -> str:
+    """Collapse all whitespace runs (spaces, tabs, newlines) into single spaces.
+
+    CRITICAL: The chunking pipeline uses text.split() + " ".join() which
+    collapses multi-space runs.  CUAD ground-truth answers preserve the
+    original irregular whitespace from the PDF.  Without this normalization
+    the substring match will *always* fail for answers with extra spaces."""
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def compress_query(query: str) -> str:
-    """
-    Query reformulation — strip the bloated CUAD instruction down to its
-    core legal concept so the embedding model gets a cleaner signal.
-    """
-    # Try extracting quoted clause names  (e.g. "Document Name")
+    """Query reformulation — strip the bloated CUAD instruction down to its
+    core legal concept so the embedding model gets a cleaner signal."""
+
+    # 1. Try extracting the quoted clause name AND the description after "Details:"
+    #    to give the embedding model both the label and the semantic definition.
     quoted = re.findall(r'"([^"]*)"', query)
-    if quoted:
-        return f"{quoted[0]} clause"
-    # Fall back to the text after "Details:"
+    details = ""
     if "details:" in query.lower():
-        return query.lower().split("details:", 1)[1].strip()
+        details = query.split(":", 1)[-1].strip() if ":" in query.split("Details")[-1] else ""
+        # Get everything after the last "Details:"
+        parts = re.split(r"[Dd]etails:\s*", query)
+        if len(parts) > 1:
+            details = parts[-1].strip()
+
+    if quoted and details:
+        return f"{quoted[0]}: {details}"
+    if quoted:
+        return f"{quoted[0]} clause in a legal contract"
+    if details:
+        return details
     return query
 
 
 def extract_clause_category(qa_id: str) -> str:
-    """Derive the CUAD clause category from the question ID string."""
+    """Derive the CUAD clause category from the question ID string.
+
+    CUAD IDs look like:
+      'CreditSuisseGoldmanNY__Parties_0'  or
+      'some-title/Governing-Law_3'
+    """
     m = _CATEGORY_RE.search(qa_id)
-    return m.group(1).replace("-", " ").title() if m else "Unknown"
+    if m:
+        return m.group(1).replace("-", " ").replace("_", " ").strip().title()
+    m = _CATEGORY_FALLBACK_RE.search(qa_id)
+    if m:
+        return m.group(1).replace("-", " ").replace("_", " ").strip().title()
+    # Last resort: try to extract from the question text itself
+    return "Unknown"
+
+
+def _extract_category_from_question(question: str) -> str:
+    """Fallback: extract clause category from the question text when ID parsing fails."""
+    quoted = re.findall(r'"([^"]*)"', question)
+    if quoted:
+        return quoted[0].strip().title()
+    return "Unknown"
 
 
 # =====================================================================
@@ -162,7 +202,8 @@ def evaluate(
 
     for idx, qa in enumerate(test_suite):
         raw_query       = qa["question"]
-        expected_answer = qa["answer"].strip().lower()
+        # Normalize whitespace so "The  Distributor" matches "The Distributor" in chunks
+        expected_answer = normalize_ws(qa["answer"]).lower()
         category        = qa.get("category", "Unknown")
 
         query_text = compress_query(raw_query) if use_compression else raw_query
@@ -210,7 +251,8 @@ def evaluate(
             chunk_text = doc.get("text", "")
             retrieved_snippets.append(chunk_text)
             scores.append(doc.get("score", 0.0))
-            if found_rank == -1 and expected_answer in chunk_text.lower():
+            # Normalize both sides so multi-space CUAD answers match single-space chunks
+            if found_rank == -1 and expected_answer in normalize_ws(chunk_text).lower():
                 found_rank = rank_pos
 
         ranks.append(found_rank)
@@ -218,9 +260,12 @@ def evaluate(
 
         # — Index-coverage check on misses —
         if found_rank == -1:
-            escaped = re.escape(qa["answer"])
+            # Use the whitespace-normalized answer for regex matching too.
+            # Replace each space with \s+ to handle any whitespace variation.
+            normalized_answer = normalize_ws(qa["answer"])
+            ws_flex_pattern = re.sub(r"\s+", r"\\s+", re.escape(normalized_answer))
             exists_in_db = bool(
-                collection.find_one({"text": {"$regex": escaped, "$options": "i"}})
+                collection.find_one({"text": {"$regex": ws_flex_pattern, "$options": "i"}})
             )
             if exists_in_db:
                 index_hit_count += 1
@@ -408,12 +453,16 @@ def build_test_suite(dataset, max_samples: int) -> list[dict]:
             continue
 
         qa_id = item.get("id", "")
+        category = extract_clause_category(qa_id)
+        # Fallback: extract category from the question text if ID parsing failed
+        if category == "Unknown":
+            category = _extract_category_from_question(item["question"])
         suite.append({
             "question": item["question"],
             "answer":   texts[0].strip(),
             "context":  item["context"],
             "id":       qa_id,
-            "category": extract_clause_category(qa_id),
+            "category": category,
         })
 
         if len(suite) >= max_samples:
