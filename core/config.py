@@ -5,13 +5,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- CREDENTIALS ---
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
 # --- MODELS ---
 GLINER_MODEL = "urchade/gliner_medium-v2.1"
 GLIREL_MODEL = "jackboyla/glirel-large-v0"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-GROQ_MODEL = "llama-3.3-70b-specdec" 
+GROQ_MODEL = "llama-3.3-70b-versatile" 
 REL_THRESHOLD = 0.4
 NER_THRESHOLD = 0.6
 

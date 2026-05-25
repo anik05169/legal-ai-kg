@@ -68,6 +68,7 @@ def run_diagnostics():
         # Check if key is available
         key = os.getenv("GROQ_API_KEY")
         if key:
+            key = key.strip()
             req.add_header("Authorization", f"Bearer {key}")
             
         with urllib.request.urlopen(req, timeout=5.0) as response:

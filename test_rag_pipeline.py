@@ -32,7 +32,12 @@ def main():
 
     # --- 1. Load Credentials & Settings ---
     mongo_uri = os.getenv("MONGO_URI") or getattr(config, "MONGO_URI", None)
+    if mongo_uri:
+        mongo_uri = mongo_uri.strip()
+        
     groq_api_key = os.getenv("GROQ_API_KEY") or getattr(config, "GROQ_API_KEY", None)
+    if groq_api_key:
+        groq_api_key = groq_api_key.strip()
     
     if not mongo_uri:
         print("❌ ERROR: MONGO_URI environment variable or configuration is missing.")
