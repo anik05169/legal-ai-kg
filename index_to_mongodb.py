@@ -1,141 +1,345 @@
 import os
 import uuid
-import torch
+import hashlib
 import certifi
+import torch
+
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
+
 from core.data_loader import load_cuad_dataset
+
 
 # =====================================================================
 # ⚙️ CONFIGURATION
 # =====================================================================
-# Pulls connection string securely from the environment variables set by GitHub secrets
+
 MONGO_URI = os.getenv("MONGO_URI")
+
 DB_NAME = "legal_rag"
 COLLECTION_NAME = "chunks"
 
-CHUNK_SIZE = 150  # Words per chunk
-OVERLAP = 30      # Overlapping words between chunks
-NUM_CONTRACTS = 1000 # Number of unique CUAD contracts to index
+# Better settings for legal contracts
+CHUNK_SIZE = 500
+OVERLAP = 100
+
+# Number of unique CUAD contracts to index
+NUM_CONTRACTS = 1000
+
+# Embedding model
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+
+# Batch size for embeddings
+BATCH_SIZE = 32
+
 
 # =====================================================================
 # 🛠️ HELPER FUNCTIONS
 # =====================================================================
-def chunk_text(text, chunk_size=150, overlap=30):
-    """Splits a document text string into overlapping chunks of words."""
+
+def chunk_text(text, chunk_size=500, overlap=100):
+    """
+    Splits legal contract text into overlapping chunks.
+    """
+
     words = text.split()
+
+    if not words:
+        return []
+
     chunks = []
-    if len(words) == 0:
-        return chunks
-    step = max(1, chunk_size - overlap)
-    for i in range(0, len(words), step):
-        chunks.append(" ".join(words[i:i + chunk_size]))
+
+    step = chunk_size - overlap
+
+    for start in range(0, len(words), step):
+        end = start + chunk_size
+
+        chunk = " ".join(words[start:end])
+
+        if chunk.strip():
+            chunks.append(chunk)
+
     return chunks
+
+
+def generate_contract_id(contract_text):
+    """
+    Generates stable deterministic contract ID.
+    """
+
+    return hashlib.md5(contract_text.encode("utf-8")).hexdigest()
+
 
 # =====================================================================
 # 🚀 MAIN PIPELINE
 # =====================================================================
-def main():
-    if not MONGO_URI:
-        raise ValueError("❌ MONGO_URI environment variable is missing. Set it in GitHub secrets or environment variables.")
 
-    print("⚡ Device selection...")
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"   Using hardware accelerator: [{device.upper()}]")
+def main():
+
+    # -------------------------------------------------------------
+    # Validate Mongo URI
+    # -------------------------------------------------------------
+
+    if not MONGO_URI:
+        raise ValueError(
+            "❌ MONGO_URI environment variable missing."
+        )
+
+    # -------------------------------------------------------------
+    # Device Selection
+    # -------------------------------------------------------------
+
+    print("⚡ Selecting device...")
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+
+    print(f"✅ Using device: [{device.upper()}]")
+
+    # -------------------------------------------------------------
+    # Load Embedding Model
+    # -------------------------------------------------------------
 
     print("\n🧠 Loading embedding model...")
-    embedder = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
 
-    print("\n📥 Connecting to MongoDB Atlas cluster...")
-    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+    embedder = SentenceTransformer(
+        EMBEDDING_MODEL,
+        device=device
+    )
+
+    # -------------------------------------------------------------
+    # MongoDB Connection
+    # -------------------------------------------------------------
+
+    print("\n📥 Connecting to MongoDB Atlas...")
+
+    client = MongoClient(
+        MONGO_URI,
+        tlsCAFile=certifi.where()
+    )
+
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
 
-    # Optional: Clear existing collection for a clean slate
-    print("🧹 Wiping clean old documents in cloud collection...")
+    # -------------------------------------------------------------
+    # Clear Existing Collection
+    # -------------------------------------------------------------
+
+    print("🧹 Clearing old indexed chunks...")
+
     collection.delete_many({})
 
+    # -------------------------------------------------------------
+    # Load Dataset
+    # -------------------------------------------------------------
+
     print("\n📥 Loading CUAD dataset...")
+
     dataset = load_cuad_dataset()
-    
-    # Extract unique legal contracts
-    unique_contracts = list(set(dataset["context"]))
-    print(f"📊 Total unique contracts found in CUAD dataset: {len(unique_contracts)}")
-    
+
+    # -------------------------------------------------------------
+    # Preserve Ordering (IMPORTANT)
+    # -------------------------------------------------------------
+
+    unique_contracts = list(
+        dict.fromkeys(dataset["context"])
+    )
+
+    print(
+        f"📊 Total unique contracts found: "
+        f"{len(unique_contracts)}"
+    )
+
+    # -------------------------------------------------------------
+    # Select Subset
+    # -------------------------------------------------------------
+
     selected_contracts = unique_contracts[:NUM_CONTRACTS]
-    print(f"🚀 Selected {len(selected_contracts)} contracts for processing.")
+
+    print(
+        f"🚀 Indexing {len(selected_contracts)} contracts..."
+    )
 
     total_chunks_indexed = 0
 
+    # -------------------------------------------------------------
+    # Process Contracts
+    # -------------------------------------------------------------
+
     for doc_idx, contract_text in enumerate(selected_contracts):
-        print(f"\n📄 Processing Contract {doc_idx + 1}/{len(selected_contracts)}...")
-        
-        # Chunk text
-        chunks = chunk_text(contract_text, chunk_size=CHUNK_SIZE, overlap=OVERLAP)
-        print(f"   -> Created {len(chunks)} chunks from contract. Generating embeddings...")
-        
-        # Generate embeddings in batch
-        embeddings = embedder.encode(chunks).tolist()
-        
-        # Build bulk insert payload
+
+        print(
+            f"\n📄 Processing Contract "
+            f"{doc_idx + 1}/{len(selected_contracts)}"
+        )
+
+        contract_id = generate_contract_id(contract_text)
+
+        # ---------------------------------------------------------
+        # Chunk Contract
+        # ---------------------------------------------------------
+
+        chunks = chunk_text(
+            contract_text,
+            chunk_size=CHUNK_SIZE,
+            overlap=OVERLAP
+        )
+
+        print(
+            f"   -> Generated {len(chunks)} chunks"
+        )
+
+        if not chunks:
+            print("   ⚠️ Skipping empty contract")
+            continue
+
+        # ---------------------------------------------------------
+        # Generate Embeddings
+        # ---------------------------------------------------------
+
+        print("   🧠 Generating embeddings...")
+
+        embeddings = embedder.encode(
+            chunks,
+            batch_size=BATCH_SIZE,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False
+        )
+
+        # ---------------------------------------------------------
+        # Build Mongo Payload
+        # ---------------------------------------------------------
+
         payload = []
-        for idx, text_passage in enumerate(chunks):
-            chunk_id = str(uuid.uuid4())
+
+        for chunk_idx, chunk_text_value in enumerate(chunks):
+
             payload.append({
-                "_id": chunk_id,
-                "text": text_passage,
-                "embedding": embeddings[idx],
+                "_id": str(uuid.uuid4()),
+
+                "text": chunk_text_value,
+
+                "embedding": embeddings[chunk_idx].tolist(),
+
                 "metadata": {
+                    "contract_id": contract_id,
                     "contract_index": doc_idx,
-                    "chunk_index": idx,
-                    "word_count": len(text_passage.split())
+                    "chunk_index": chunk_idx,
+                    "word_count": len(
+                        chunk_text_value.split()
+                    )
                 }
             })
-            
-        # Bulk write to MongoDB
+
+        # ---------------------------------------------------------
+        # Insert Into MongoDB
+        # ---------------------------------------------------------
+
         if payload:
+
             collection.insert_many(payload)
+
             total_chunks_indexed += len(payload)
-            print(f"   ✅ Successfully indexed {len(payload)} chunks in MongoDB Atlas.")
 
-    print(f"\n🏆 Pipeline complete! Total chunks indexed in MongoDB: {total_chunks_indexed}")
+            print(
+                f"   ✅ Indexed {len(payload)} chunks"
+            )
 
-    # =====================================================================
-    # 🔍 VERIFY INDEX (MOCK QUERY RUN)
-    # =====================================================================
-    print("\n🔍 Running verification Vector Search query...")
-    test_query = "What is the governing law of the agreement?"
-    query_vector = embedder.encode([test_query]).tolist()[0]
-    
-    # Run MongoDB Vector Search pipeline
+    # =================================================================
+    # FINAL STATS
+    # =================================================================
+
+    print("\n══════════════════════════════════════")
+    print("🏆 INDEXING COMPLETE")
+    print("══════════════════════════════════════")
+
+    print(f"📦 Contracts indexed : {len(selected_contracts)}")
+    print(f"📄 Total chunks      : {total_chunks_indexed}")
+
+    # =================================================================
+    # VECTOR SEARCH VERIFICATION
+    # =================================================================
+
+    print("\n🔍 Running verification vector search...")
+
+    test_query = "governing law clause"
+
+    query_vector = embedder.encode(
+        [test_query],
+        normalize_embeddings=True
+    )[0].tolist()
+
     pipeline = [
         {
             "$vectorSearch": {
                 "index": "vector_index",
                 "path": "embedding",
                 "queryVector": query_vector,
-                "numCandidates": 10,
-                "limit": 1
+                "numCandidates": 100,
+                "limit": 3
             }
         },
         {
             "$project": {
                 "text": 1,
-                "score": {"$meta": "vectorSearchScore"}
+                "metadata": 1,
+                "score": {
+                    "$meta": "vectorSearchScore"
+                }
             }
         }
     ]
-    
+
     try:
-        results = list(collection.aggregate(pipeline))
-        if results:
-            print("\n🎉 Verification Success! Best matching chunk found in Atlas:")
-            print(f"   Match Score: {results[0].get('score'):.4f}")
-            print(f"   Content Preview: {results[0].get('text')[:200]}...")
+
+        results = list(
+            collection.aggregate(pipeline)
+        )
+
+        if not results:
+
+            print(
+                "⚠️ No vector search results returned."
+            )
+
         else:
-            print("\n⚠️ Vector Search completed, but returned 0 results. Ensure your Atlas Vector Search Index is fully build and 'Active'.")
+
+            print("\n🎉 Verification successful!")
+
+            for idx, result in enumerate(results):
+
+                print("\n----------------------------------")
+                print(f"Result #{idx + 1}")
+                print("----------------------------------")
+
+                print(
+                    f"Score : "
+                    f"{result.get('score'):.4f}"
+                )
+
+                print(
+                    f"Chunk : "
+                    f"{result.get('metadata', {}).get('chunk_index')}"
+                )
+
+                preview = result.get("text", "")[:300]
+
+                print(f"Preview:\n{preview}...")
+
     except Exception as e:
-        print(f"\n❌ Vector Search query failed: {e}")
+
+        print("\n❌ Vector search failed")
+        print(str(e))
+
+
+# =====================================================================
+# ENTRYPOINT
+# =====================================================================
 
 if __name__ == "__main__":
     main()
