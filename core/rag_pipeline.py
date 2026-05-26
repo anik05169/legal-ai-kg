@@ -27,8 +27,14 @@ class LegalGraphRAG:
         # This will create an empty collection instead of crashing if it's missing
         self.collection = self.chroma_client.get_or_create_collection(name="legal_chunks")      
         
-        with open(config.GRAPH_PATH, "r", encoding="utf-8") as f:
-            self.G = nx.node_link_graph(json.load(f))
+        import os
+        if os.path.exists(config.GRAPH_PATH):
+            with open(config.GRAPH_PATH, "r", encoding="utf-8") as f:
+                self.G = nx.node_link_graph(json.load(f))
+            print("📊 Knowledge Graph (legal_kg.json) loaded successfully.")
+        else:
+            self.G = nx.DiGraph()
+            print("⚠️ Warning: Knowledge Graph file (legal_kg.json) not found. Initializing empty graph.")
             
         self.llm_client = OpenAI(
             base_url="https://api.groq.com/openai/v1",
