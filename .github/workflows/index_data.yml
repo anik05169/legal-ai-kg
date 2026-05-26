@@ -49,11 +49,21 @@ jobs:
         python diagnose_groq.py
 
     # ============================================================
-    # TEST RAG PIPELINE WITH USER QUERY (GROQ LLM)
+    # TEST RAG STANDALONE PIPELINE (GROQ LLM)
     # ============================================================
-    - name: Run RAG Pipeline Test Query
+    - name: Run Standalone RAG Pipeline Test
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       run: |
         python test_rag_pipeline.py --query "what is breach of contract"
+
+    # ============================================================
+    # TEST FULL FASTAPI WEB SERVER & JSON APIs
+    # ============================================================
+    - name: Run API Server Integration Test
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      run: |
+        python test_api_integration.py
