@@ -106,6 +106,7 @@ def run_benchmark(test_suite, collection, embedder, use_compression=False):
             failures.append({
                 "index": i + 1,
                 "raw_query": raw_query,
+                "compressed_query": query_text,
                 "expected": expected_answer,
                 "in_index": in_index,
                 "retrieved_top": retrieved_texts[0] if retrieved_texts else "[No document retrieved]",
