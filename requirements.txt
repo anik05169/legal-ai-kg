@@ -24,8 +24,9 @@ openai
 # Hugging Face Datasets
 datasets
 ragas
-langchain
-langchain-community
+langchain<0.3.0
+langchain-community<0.3.0
+
 langchain-google-vertexai
 langchain-openai
 langchain-google-genai
