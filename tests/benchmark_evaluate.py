@@ -110,7 +110,7 @@ def run_evaluation():
     # --- 4b. Initialize Ragas Evaluator Wrappers (Using Groq & Local Embeddings) ---
     print("Setting up Ragas evaluator wrappers (using Groq and local embeddings)...")
     evaluator_llm = LangchainLLMWrapper(
-        ChatGroq(model=config.GROQ_MODEL, api_key=groq_api_key, temperature=0.0)
+        ChatGroq(model="llama-3.1-8b-instant", api_key=groq_api_key, temperature=0.0)
     )
     evaluator_embeddings = LangchainEmbeddingsWrapper(
         HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
@@ -179,7 +179,7 @@ RATING: 1""",
                     "path": "embedding",
                     "queryVector": query_embedding,
                     "numCandidates": 100,
-                    "limit": 5
+                    "limit": 3
                 }
             },
             {
@@ -219,7 +219,7 @@ RATING: 1""",
 
         try:
             response = llm_client.chat.completions.create(
-                model=config.GROQ_MODEL,
+                model="llama-3.1-8b-instant",
                 temperature=0.0,  # Strict factual grounding
                 messages=messages
             )
@@ -236,6 +236,9 @@ RATING: 1""",
         latencies.append(latency)
         
         print(f"  -> Generated answer in {latency:.2f}s.", flush=True)
+        
+        # Rate limit safeguard delay
+        time.sleep(2.0)
 
     # Create local evaluation dataframe
     eval_df = pd.DataFrame({

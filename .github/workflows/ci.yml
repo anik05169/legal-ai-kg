@@ -48,7 +48,7 @@ jobs:
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: |
-        python -u src/core/kg_indexer.py
+        python -u -m src.core.kg_indexer
 
     # ============================================================
     # TEST RAG STANDALONE PIPELINE (GROQ LLM)
