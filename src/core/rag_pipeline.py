@@ -4,6 +4,8 @@ import chromadb
 import torch
 from sentence_transformers import SentenceTransformer
 from groq import Groq
+from pymongo import MongoClient
+import certifi
 
 # --- FORCE IPV4 ONLY (Bypasses broken IPv6 routing) ---
 import socket
@@ -27,14 +29,31 @@ class LegalGraphRAG:
         # This will create an empty collection instead of crashing if it's missing
         self.collection = self.chroma_client.get_or_create_collection(name="legal_chunks")      
         
-        import os
-        if os.path.exists(config.GRAPH_PATH):
-            with open(config.GRAPH_PATH, "r", encoding="utf-8") as f:
-                self.G = nx.node_link_graph(json.load(f))
-            print("📊 Knowledge Graph (legal_kg.json) loaded successfully.")
-        else:
-            self.G = nx.DiGraph()
-            print("⚠️ Warning: Knowledge Graph file (legal_kg.json) not found. Initializing empty graph.")
+        # Connect to MongoDB Atlas (Production) or Fallback to local JSON (Development)
+        self.mongo_client = None
+        self.db = None
+        self.G = nx.DiGraph()
+        
+        if config.MONGO_URI:
+            try:
+                print("🔌 Connecting to MongoDB Atlas for Knowledge Graph...")
+                self.mongo_client = MongoClient(config.MONGO_URI, tlsCAFile=certifi.where())
+                self.db = self.mongo_client["legal_rag"]
+                # Ping test to check if database is reachable
+                self.db.list_collection_names()
+                print("💾 Successfully connected to MongoDB Atlas!")
+            except Exception as e:
+                print(f"⚠️ MongoDB Atlas connection failed: {e}. Falling back to local JSON...")
+                self.db = None
+                
+        if self.db is None:
+            import os
+            if os.path.exists(config.GRAPH_PATH):
+                with open(config.GRAPH_PATH, "r", encoding="utf-8") as f:
+                    self.G = nx.node_link_graph(json.load(f))
+                print("📊 Local Knowledge Graph (legal_kg.json) loaded successfully.")
+            else:
+                print("⚠️ Warning: Local Knowledge Graph file (legal_kg.json) not found. Initializing empty graph.")
             
         self.llm_client = Groq(
             api_key=config.GROQ_API_KEY
@@ -73,42 +92,76 @@ class LegalGraphRAG:
         else:
             return "No relevant context found.", [], []
 
-        # --- 2. QUERY-TO-GRAPH MATCHING ---
+        # --- 2. QUERY-TO-GRAPH MATCHING & EXPANSION ---
         query_lower = query.lower()
         matched_nodes = set()
+        expanded_chunk_ids = set()
+        extracted_triples = set()
         
         # Heuristic: If user asks about dates, pull in Date/Year nodes
         is_date_query = any(w in query_lower for w in ["when", "date", "signed", "terminated", "term", "year", "time"])
         
-        for node, data in self.G.nodes(data=True):
-            if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
-                matched_nodes.add(node)
-            
-            # Boost Date nodes for date-related queries
-            if is_date_query and data.get("entity_type") in ["Date", "Year", "Notice Period"]:
-                matched_nodes.add(node)
+        if self.db is not None:
+            try:
+                # Retrieve all nodes to perform lowercase containment matching locally in memory (extremely fast for scale)
+                all_nodes = list(self.db["kg_nodes"].find({}))
+                node_types = {}
+                for doc in all_nodes:
+                    node = doc["_id"]
+                    ent_type = doc.get("entity_type", "Entity")
+                    node_types[node] = ent_type
+                    
+                    if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
+                        matched_nodes.add(node)
+                    if is_date_query and ent_type in ["Date", "Year", "Notice Period"]:
+                        matched_nodes.add(node)
+                
+                # Query edges connecting to matching nodes or corresponding to retrieved semantic chunks
+                query_filter = {
+                    "$or": [
+                        {"source_chunks": {"$in": list(retrieved_chunk_ids)}},
+                        {"source": {"$in": list(matched_nodes)}},
+                        {"target": {"$in": list(matched_nodes)}}
+                    ]
+                }
+                edges = list(self.db["kg_edges"].find(query_filter))
+                
+                for edge in edges:
+                    u = edge["source"]
+                    v = edge["target"]
+                    label = edge["label"]
+                    source_chunks = edge.get("source_chunks", [])
+                    
+                    u_type = node_types.get(u, "Entity")
+                    v_type = node_types.get(v, "Entity")
+                    extracted_triples.add(f"[{u} ({u_type})] --({label})--> [{v} ({v_type})]")
+                    
+                    for chunk in source_chunks:
+                        expanded_chunk_ids.add(chunk)
+            except Exception as e:
+                print(f"⚠️ Error querying MongoDB Atlas for Knowledge Graph: {e}. Falling back to empty KG.")
+        else:
+            # Fallback to local NetworkX graph
+            for node, data in self.G.nodes(data=True):
+                if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
+                    matched_nodes.add(node)
+                if is_date_query and data.get("entity_type") in ["Date", "Year", "Notice Period"]:
+                    matched_nodes.add(node)
 
-        # --- 3. GRAPH EXPANSION (1-HOP) ---
-        expanded_chunk_ids = set()
-        extracted_triples = set()
-        
-        for u, v, data in self.G.edges(data=True):
-            source_chunks = data.get("source_chunks", [])
-            # Fallback for old index compatibility
-            if "source_chunk" in data and data["source_chunk"] not in source_chunks:
-                source_chunks.append(data["source_chunk"])
+            for u, v, data in self.G.edges(data=True):
+                source_chunks = data.get("source_chunks", [])
+                if "source_chunk" in data and data["source_chunk"] not in source_chunks:
+                    source_chunks.append(data["source_chunk"])
+                    
+                is_in_retrieved = any(chunk in retrieved_chunk_ids for chunk in source_chunks)
                 
-            is_in_retrieved = any(chunk in retrieved_chunk_ids for chunk in source_chunks)
-            
-            # Include edge if it belongs to a semantic chunk OR connects to a matched query entity
-            if is_in_retrieved or u in matched_nodes or v in matched_nodes:
-                u_type = self.G.nodes[u].get('entity_type', 'Entity')
-                v_type = self.G.nodes[v].get('entity_type', 'Entity')
-                extracted_triples.add(f"[{u} ({u_type})] --({data['label']})--> [{v} ({v_type})]")
-                
-                # Hopping: Collect all chunks that contain this structurally relevant edge
-                for chunk in source_chunks:
-                    expanded_chunk_ids.add(chunk)
+                if is_in_retrieved or u in matched_nodes or v in matched_nodes:
+                    u_type = self.G.nodes[u].get('entity_type', 'Entity')
+                    v_type = self.G.nodes[v].get('entity_type', 'Entity')
+                    extracted_triples.add(f"[{u} ({u_type})] --({data['label']})--> [{v} ({v_type})]")
+                    
+                    for chunk in source_chunks:
+                        expanded_chunk_ids.add(chunk)
 
         # --- 4. SECONDARY GRAPH RETRIEVAL ---
         # Fetch chunks discovered via the Graph that weren't in our Semantic Search

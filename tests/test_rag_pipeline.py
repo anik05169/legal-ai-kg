@@ -105,40 +105,96 @@ def main():
 
     print(f"Retrieved {len(retrieved_texts)} semantic chunks from MongoDB.")
 
-    # --- 5. Optional Knowledge Graph Parsing ---
+    # --- 5. Dynamic Knowledge Graph Retrieval ---
     extracted_triples = []
-    kg_path = config.GRAPH_PATH
-    if os.path.exists(kg_path):
-        print("Loading Knowledge Graph data...")
+    
+    # Establish connection to MongoDB Atlas for KG collections if MONGO_URI is present
+    db_kg = None
+    if mongo_uri:
         try:
-            with open(kg_path, "r", encoding="utf-8") as f:
-                G = nx.node_link_graph(json.load(f))
-                
+            db_kg = mongo_client["legal_rag"]
+            # Verify if collection has data
+            if db_kg["kg_nodes"].count_documents({}) > 0:
+                print("Connected to MongoDB Atlas for Knowledge Graph query.")
+            else:
+                db_kg = None
+        except Exception as e:
+            print(f"MongoDB Atlas KG connection error: {e}. Falling back to local/empty graph.")
+            db_kg = None
+
+    if db_kg is not None:
+        try:
+            print("Querying MongoDB Atlas collections kg_nodes & kg_edges...")
             query_lower = args.query.lower()
             matched_nodes = set()
             is_date_query = any(w in query_lower for w in ["when", "date", "signed", "terminated", "term", "year", "time"])
             
-            for node, data in G.nodes(data=True):
+            all_nodes = list(db_kg["kg_nodes"].find({}))
+            node_types = {}
+            for doc in all_nodes:
+                node = doc["_id"]
+                ent_type = doc.get("entity_type", "Entity")
+                node_types[node] = ent_type
+                
                 if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
                     matched_nodes.add(node)
-                if is_date_query and data.get("entity_type") in ["Date", "Year", "Notice Period"]:
+                if is_date_query and ent_type in ["Date", "Year", "Notice Period"]:
                     matched_nodes.add(node)
-                    
-            for u, v, data in G.edges(data=True):
-                source_chunks = data.get("source_chunks", [])
-                if "source_chunk" in data and data["source_chunk"] not in source_chunks:
-                    source_chunks.append(data["source_chunk"])
-                    
-                is_in_retrieved = any(chunk in retrieved_chunk_ids for chunk in source_chunks)
-                if is_in_retrieved or u in matched_nodes or v in matched_nodes:
-                    u_type = G.nodes[u].get('entity_type', 'Entity')
-                    v_type = G.nodes[v].get('entity_type', 'Entity')
-                    extracted_triples.append(f"[{u} ({u_type})] --({data['label']})--> [{v} ({v_type})]")
-            print(f"Extracted {len(extracted_triples)} relation triples from Knowledge Graph.")
+            
+            query_filter = {
+                "$or": [
+                    {"source_chunks": {"$in": list(retrieved_chunk_ids)}},
+                    {"source": {"$in": list(matched_nodes)}},
+                    {"target": {"$in": list(matched_nodes)}}
+                ]
+            }
+            edges = list(db_kg["kg_edges"].find(query_filter))
+            for edge in edges:
+                u = edge["source"]
+                v = edge["target"]
+                label = edge["label"]
+                
+                u_type = node_types.get(u, "Entity")
+                v_type = node_types.get(v, "Entity")
+                extracted_triples.append(f"[{u} ({u_type})] --({label})--> [{v} ({v_type})]")
+                
+            print(f"Extracted {len(extracted_triples)} relation triples from MongoDB Atlas Knowledge Graph.")
         except Exception as e:
-            print(f"Error reading/querying Knowledge Graph: {e}")
+            print(f"Error querying MongoDB Atlas Knowledge Graph: {e}")
     else:
-        print("Note: No local Knowledge Graph file (legal_kg.json) found. Proceeding with semantic text context only.")
+        # Local fallback
+        kg_path = config.GRAPH_PATH
+        if os.path.exists(kg_path):
+            print("Loading local Knowledge Graph data...")
+            try:
+                with open(kg_path, "r", encoding="utf-8") as f:
+                    G = nx.node_link_graph(json.load(f))
+                    
+                query_lower = args.query.lower()
+                matched_nodes = set()
+                is_date_query = any(w in query_lower for w in ["when", "date", "signed", "terminated", "term", "year", "time"])
+                
+                for node, data in G.nodes(data=True):
+                    if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
+                        matched_nodes.add(node)
+                    if is_date_query and data.get("entity_type") in ["Date", "Year", "Notice Period"]:
+                        matched_nodes.add(node)
+                        
+                for u, v, data in G.edges(data=True):
+                    source_chunks = data.get("source_chunks", [])
+                    if "source_chunk" in data and data["source_chunk"] not in source_chunks:
+                        source_chunks.append(data["source_chunk"])
+                        
+                    is_in_retrieved = any(chunk in retrieved_chunk_ids for chunk in source_chunks)
+                    if is_in_retrieved or u in matched_nodes or v in matched_nodes:
+                        u_type = G.nodes[u].get('entity_type', 'Entity')
+                        v_type = G.nodes[v].get('entity_type', 'Entity')
+                        extracted_triples.append(f"[{u} ({u_type})] --({data['label']})--> [{v} ({v_type})]")
+                print(f"Extracted {len(extracted_triples)} relation triples from local Knowledge Graph.")
+            except Exception as e:
+                print(f"Error reading/querying local Knowledge Graph: {e}")
+        else:
+            print("Note: No Knowledge Graph found in MongoDB Atlas or local file. Proceeding with semantic text context only.")
 
     # --- 6. Synthesize Context ---
     context_blocks = []

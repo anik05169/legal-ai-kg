@@ -42,6 +42,15 @@ jobs:
         key: ${{ runner.os }}-hf-models
 
     # ============================================================
+    # BUILD INFRASTRUCTURE & INDEX KNOWLEDGE GRAPH TO MONGODB
+    # ============================================================
+    - name: Build Infrastructure & Index KG to MongoDB
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+      run: |
+        python -u src/core/kg_indexer.py
+
+    # ============================================================
     # TEST RAG STANDALONE PIPELINE (GROQ LLM)
     # ============================================================
     - name: Run Standalone RAG Pipeline Test

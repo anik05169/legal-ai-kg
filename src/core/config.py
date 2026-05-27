@@ -6,6 +6,8 @@ load_dotenv()
 
 # --- CREDENTIALS ---
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+MONGO_URI = os.getenv("MONGO_URI", "").strip()
+
 
 # --- MODELS ---
 GLINER_MODEL = "urchade/gliner_medium-v2.1"
