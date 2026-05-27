@@ -24,8 +24,11 @@ openai
 # Hugging Face Datasets
 datasets
 ragas
+langchain
+langchain-community
 pandas
 tqdm
+
 
 
 # Web Backend
