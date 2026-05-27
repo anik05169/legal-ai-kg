@@ -26,7 +26,12 @@ datasets
 ragas
 langchain
 langchain-community
+langchain-google-vertexai
+langchain-openai
+langchain-google-genai
 pandas
+
+
 tqdm
 
 
