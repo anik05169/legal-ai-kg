@@ -23,6 +23,10 @@ openai
 
 # Hugging Face Datasets
 datasets
+ragas
+pandas
+tqdm
+
 
 # Web Backend
 fastapi
