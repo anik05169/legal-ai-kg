@@ -113,7 +113,7 @@ def build_infrastructure():
                 G.add_edge(contract_id, gov_law_id, label="HAS_GOVERNING_LAW", source_chunks=[contract_id])
 
         # C. Party Nodes & Edges
-        for party in contract.get("parties", []):
+        for party in (contract.get("parties") or []):
             party_name = party.get("name")
             if not party_name:
                 continue
@@ -142,7 +142,7 @@ def build_infrastructure():
                     G.add_edge(party_name, p_loc_id, label="HAS_LOCATION", source_chunks=[contract_id])
 
         # D. Clause Nodes & Edges
-        for clause in contract.get("clauses", []):
+        for clause in (contract.get("clauses") or []):
             clause_type = clause.get("clause_type")
             if not clause_type:
                 continue
