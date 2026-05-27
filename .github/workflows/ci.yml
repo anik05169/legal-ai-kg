@@ -59,7 +59,7 @@ jobs:
         MONGO_URI: ${{ secrets.MONGO_URI }}
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       run: |
-        python -u tests/benchmark_evaluate.py
+        python -u tests/run_benchmark_rag.py
 
     # ============================================================
     # UPLOAD EVALUATION REPORTS
