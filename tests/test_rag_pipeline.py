@@ -7,7 +7,7 @@ import torch
 import networkx as nx
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
+from groq import Groq
 
 # --- FORCE IPV4 ONLY (Bypasses broken IPv6 routing) ---
 import socket
@@ -155,8 +155,7 @@ def main():
 
     # --- 7. Call LLM (Groq) ---
     print(f"Invoking Groq LLM ({config.GROQ_MODEL})...")
-    llm_client = OpenAI(
-        base_url="https://api.groq.com/openai/v1",
+    llm_client = Groq(
         api_key=groq_api_key
     )
 

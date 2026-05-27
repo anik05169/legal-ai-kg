@@ -58,9 +58,8 @@ jobs:
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        python tests/benchmark_evaluate.py
+        python -u tests/benchmark_evaluate.py
 
     # ============================================================
     # UPLOAD EVALUATION REPORTS

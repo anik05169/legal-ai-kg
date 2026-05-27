@@ -3,7 +3,7 @@ import networkx as nx
 import chromadb
 import torch
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
+from groq import Groq
 
 # --- FORCE IPV4 ONLY (Bypasses broken IPv6 routing) ---
 import socket
@@ -36,8 +36,7 @@ class LegalGraphRAG:
             self.G = nx.DiGraph()
             print("⚠️ Warning: Knowledge Graph file (legal_kg.json) not found. Initializing empty graph.")
             
-        self.llm_client = OpenAI(
-            base_url="https://api.groq.com/openai/v1",
+        self.llm_client = Groq(
             api_key=config.GROQ_API_KEY
         )
         print("✅ Engine Ready (using Groq)!\n")

@@ -8,7 +8,7 @@ import torch
 import pandas as pd
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
+from groq import Groq
 from datasets import Dataset
 from ragas import evaluate
 from ragas.metrics import (
@@ -17,6 +17,10 @@ from ragas.metrics import (
     faithfulness,
     AspectCritic
 )
+from langchain_groq import ChatGroq
+from ragas.llms import LangchainLLMWrapper
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from ragas.embeddings import LangchainEmbeddingsWrapper
 
 # --- FORCE IPV4 ONLY (Bypasses broken IPv6 routing) ---
 import socket
@@ -99,9 +103,17 @@ def run_evaluation():
 
     # --- 4. Initialize Groq LLM Client ---
     print(f"Initializing Groq LLM Client ({config.GROQ_MODEL})...")
-    llm_client = OpenAI(
-        base_url="https://api.groq.com/openai/v1",
+    llm_client = Groq(
         api_key=groq_api_key
+    )
+
+    # --- 4b. Initialize Ragas Evaluator Wrappers (Using Groq & Local Embeddings) ---
+    print("Setting up Ragas evaluator wrappers (using Groq and local embeddings)...")
+    evaluator_llm = LangchainLLMWrapper(
+        ChatGroq(model=config.GROQ_MODEL, api_key=groq_api_key, temperature=0.0)
+    )
+    evaluator_embeddings = LangchainEmbeddingsWrapper(
+        HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
     )
 
     # --- 5. Custom Aspect Critic Definition (From Reference) ---
@@ -148,14 +160,13 @@ RATING: 1""",
     responses = []
     retrieved_contexts = []
     latencies = []
-
     # --- 6. Execute Vector RAG Pipeline ---
-    print("\nStarting evaluation pipeline...")
+    print("\nStarting evaluation pipeline...", flush=True)
     for idx, row in test_df.iterrows():
         question = row["question"]
         ground_truth = row["ground_truth"]
         
-        print(f"[{idx+1}/{len(test_df)}] Query: '{question[:60]}...'")
+        print(f"[{idx+1}/{len(test_df)}] Query: '{question[:60]}...'", flush=True)
         
         start_time = time.time()
         
@@ -183,7 +194,7 @@ RATING: 1""",
             results = list(collection.aggregate(pipeline))
             context_list = [res["text"] for res in results]
         except Exception as e:
-            print(f"  ❌ MongoDB Vector Search failed: {e}")
+            print(f"  ❌ MongoDB Vector Search failed: {e}", flush=True)
             context_list = []
             
         retrieved_contexts.append(context_list)
@@ -214,7 +225,7 @@ RATING: 1""",
             )
             answer = response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"  ❌ Groq LLM generation failed: {e}")
+            print(f"  ❌ Groq LLM generation failed: {e}", flush=True)
             answer = "ERROR: Generation Failed"
 
         latency = time.time() - start_time
@@ -224,7 +235,7 @@ RATING: 1""",
         responses.append(answer)
         latencies.append(latency)
         
-        print(f"  -> Generated answer in {latency:.2f}s.")
+        print(f"  -> Generated answer in {latency:.2f}s.", flush=True)
 
     # Create local evaluation dataframe
     eval_df = pd.DataFrame({
@@ -244,11 +255,7 @@ RATING: 1""",
     
     ragas_dataset = Dataset.from_pandas(eval_df)
 
-    if not openai_api_key:
-        print("⚠️ Warning: OPENAI_API_KEY environment variable is not defined.")
-        print("⚠️ Ragas evaluation step requires an LLM judge. Attempting run but it may fail if keys are missing.")
-
-    print("📊 Executing Ragas metrics...")
+    print("📊 Executing Ragas metrics (using Groq LLM and local embeddings)...")
     try:
         eval_result = evaluate(
             ragas_dataset,
@@ -257,7 +264,9 @@ RATING: 1""",
                 context_recall,
                 faithfulness,
                 answer_satisfaction
-            ]
+            ],
+            llm=evaluator_llm,
+            embeddings=evaluator_embeddings
         )
         scores = dict(eval_result._repr_dict.items())
         print("\n✅ Ragas Metrics Results:")
