@@ -1,11 +1,11 @@
-name: Legal AI — Full Pipeline (Index + RAG Test)
+name: Legal AI — RAG Pipeline Test
 
 on:
   # Allows you to run this workflow manually from the Actions tab on GitHub
   workflow_dispatch:
 
 jobs:
-  index-and-test:
+  test-rag:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,13 +41,6 @@ jobs:
         path: ~/.cache/huggingface
         key: ${{ runner.os }}-hf-models
 
-    - name: Groq diagnostics
-      env:
-        MONGO_URI: ${{ secrets.MONGO_URI }}
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      run: |
-        python diagnose_groq.py
-
     # ============================================================
     # TEST RAG STANDALONE PIPELINE (GROQ LLM)
     # ============================================================
@@ -56,27 +49,4 @@ jobs:
         MONGO_URI: ${{ secrets.MONGO_URI }}
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       run: |
-        python test_rag_pipeline.py --query "what is breach of contract"
-
-
-
-
-    # ============================================================
-    # EVALUATE COMPREHENSIVE METRICS (RECALL, LATENCY, P50/P95)
-    # ============================================================
-    - name: Run Metrics Inspection Suite
-      env:
-        MONGO_URI: ${{ secrets.MONGO_URI }}
-      run: |
-        python inspect_metrics.py --samples 20
-
-    # ============================================================
-    # UPLOAD EVALUATION REPORTS
-    # ============================================================
-    - name: Upload Metrics Reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: legal-ai-metrics-report
-        path: reports/
-        retention-days: 30
+        python tests/test_rag_pipeline.py --query "what is breach of contract"

@@ -14,8 +14,8 @@ def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 socket.getaddrinfo = patched_getaddrinfo
 
 # Add parent directory to path to ensure modules can be loaded
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from core.rag_pipeline import LegalGraphRAG
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from src.core.rag_pipeline import LegalGraphRAG
 import app as app_module
 
 def run_server():

@@ -43,23 +43,51 @@ graph TD
 
 ---
 
-## 📂 Core Directory & File Inventory
+## 📂 Directory Structure
 
-The project structure is organized as follows:
+```text
+legal-ai-kg/
+├── src/
+│   └── core/                          # Core pipeline & logic engine (Python package)
+│       ├── __init__.py                # Package init — exposes LegalGraphRAG, build_infrastructure, etc.
+│       ├── config.py                  # Models, API keys, thresholds, and taxonomy constraints
+│       ├── data_loader.py             # CUAD dataset ingestion layer
+│       ├── kg_indexer.py              # Text chunker, GLiNER NER, GLiREL relation extractor, DB builder
+│       ├── rag_pipeline.py            # Semantic VDB retrieval + 1-hop graph expansion & LLM synthesis
+│       └── visualize_kg.py            # PyVis network rendering engine (Vis.js visualization)
+├── scripts/                           # Standalone runnable scripts
+│   └── index_to_mongodb.py           # MongoDB Atlas bulk indexer
+├── tests/                             # Test runners
+│   ├── test_rag_pipeline.py           # Standalone MongoDB RAG pipeline test (with argparse)
+│   └── test_api_integration.py        # FastAPI server integration test
+├── static/                            # Web dashboard assets
+│   ├── index.html                     # Dashboard HTML (glassmorphic dark theme)
+│   ├── style.css                      # Stylesheet
+│   └── script.js                      # Frontend logic (SSE, tabs, chat)
+├── data/                              # Dataset directory (CUADv1.json / CUADv1.zip)
+├── reports/                           # Metrics output from benchmark runs
+├── research/                          # Jupyter notebooks and research artifacts
+│   └── import-graph/
+├── app.py                             # FastAPI server entrypoint
+├── main.py                            # CLI entrypoint (build + query loop)
+├── requirements.txt                   # Python dependencies
+├── .gitignore                         # Version control exclusions
+└── README.md                          # This file
+```
 
-| File / Folder | Type | Description | Key Classes / Functions |
-| :--- | :--- | :--- | :--- |
-| **`config.py`** | Configuration | Declares models, API keys, file paths, entity labels, relation categories, and logical taxonomy constraints. | `ENTITY_LABELS`, `RELATION_LABELS`, `VALID_RELATIONS` |
-| **`data_loader.py`** | Data Ingestion | Downloads and loads unique legal contract texts from the **CUAD (Contract Understanding Atticus Dataset)** on Hugging Face. | `get_cuad_contracts` |
-| **`kg_indexer.py`** | KG/Vector Build | Orchestrates chunking, text embedding, named entity recognition (GLiNER), relation extraction (GLiREL), and populates ChromaDB and the NetworkX graph. | `build_infrastructure`, `chunk_text` |
-| **`visualize_kg.py`** | Visualizer | Generates an interactive, dark-themed HTML graph simulation using **PyVis**, styled based on entity taxonomy and centrality. | `generate_interactive_graph`, `COLOR_MAP` |
-| **`rag_pipeline.py`** | RAG Core Engine | Performs semantic vector retrieval, keyword-to-node matching, graph expansion, chunk ID synthesis, and prompt generation. | `LegalGraphRAG`, `answer_query` |
-| **`app.py`** | Web Server | FastAPI backend providing an SSE pipeline build progress stream, chat interface, and static content serving. | `build_pipeline_stream`, `chat` |
-| **`main.py`** | CLI Entrypoint | Command-line loop for building, rendering, and querying the system interactively. | `main` |
-| **`static/index.html`** | Frontend HTML | Structured dark-themed dashboard featuring tabs for the Interactive Graph, Original Document, and Chat QA interface. | Dashboard UI markup |
-| **`static/style.css`** | Styling | Glassmorphic dark designs, hover glowing effects, custom chat bubbles, and layout adjustments. | Core stylesheet |
-| **`static/script.js`** | Frontend Logic | Connects to SSE stream `/api/build/stream`, coordinates active tabs, manages chat rendering, and handles Markdown answers. | Chat controllers, SSE handlers |
-| **`requirements.txt`** | Dependencies | Python project dependency definitions. | GLiNER, GLiREL, ChromaDB, FastAPI, PyVis |
+---
+
+## 📋 Core Module Reference
+
+| Module | Description | Key Exports |
+| :--- | :--- | :--- |
+| **`src/core/config.py`** | Models, API keys, file paths, entity labels, relation categories, and logical taxonomy constraints. | `ENTITY_LABELS`, `RELATION_LABELS`, `VALID_RELATIONS` |
+| **`src/core/data_loader.py`** | Downloads and loads unique legal contract texts from the CUAD dataset. | `get_cuad_contracts`, `load_cuad_dataset` |
+| **`src/core/kg_indexer.py`** | Orchestrates chunking, embedding, NER (GLiNER), relation extraction (GLiREL), and populates ChromaDB + NetworkX graph. | `build_infrastructure`, `chunk_text` |
+| **`src/core/visualize_kg.py`** | Generates an interactive, dark-themed HTML graph using PyVis. | `generate_interactive_graph`, `COLOR_MAP` |
+| **`src/core/rag_pipeline.py`** | Semantic vector retrieval, keyword-to-node matching, graph expansion, and LLM prompt generation. | `LegalGraphRAG`, `answer_query` |
+| **`app.py`** | FastAPI backend: SSE pipeline build stream, chat API, static content serving. | `build_pipeline_stream`, `chat` |
+| **`main.py`** | CLI orchestrator: builds infrastructure, renders graph, starts interactive query loop. | `main` |
 
 ---
 
@@ -67,7 +95,7 @@ The project structure is organized as follows:
 
 To run this application locally, you can choose between two entrypoints:
 
-### 1. Web Dashboard Interface (Highly Recommended)
+### 1. Web Dashboard Interface (Recommended)
 Start the FastAPI server:
 ```powershell
 python app.py
@@ -75,7 +103,7 @@ python app.py
 * **URL**: Open your browser at `http://localhost:8000`.
 * **Flow**:
   1. Click the **"Start Analysis Demo"** button on the glassmorphic landing card.
-  2. The server will stream live progress (Hugging Face dataset downloads, model token indexing, relational validations).
+  2. The server will stream live progress (dataset downloads, model loading, relational validations).
   3. Upon completion, the interactive PyVis **Knowledge Graph** loads in the main panel.
   4. Use the tabs to browse the **Original Contract** or engage in **QA Chat** with real-time semantic + graph debugging.
 
@@ -87,7 +115,13 @@ python main.py
 * **Flow**:
   1. Automatically runs indexing, builds `./chroma_db`, and saves `legal_kg.json`.
   2. Generates the `interactive_graph.html`.
-  3. Commences a query prompt loop displaying extracted triples, parsed contexts, and AI answers directly.
+  3. Starts a query prompt loop displaying extracted triples, parsed contexts, and AI answers.
+
+### 3. MongoDB Atlas Bulk Indexer
+To index all CUAD contracts into MongoDB Atlas for cloud-based vector search:
+```powershell
+python scripts/index_to_mongodb.py
+```
 
 ---
 
@@ -104,18 +138,14 @@ python main.py
 
 ## 🛠️ Technology Stack & Dependencies
 
-At the core of this GraphRAG engine is a curated suite of state-of-the-art technologies, listed below with their primary role:
-
-* **MongoDB Atlas Vector Search** - Cloud-hosted vector database used for highly scalable semantic similarity search and document retrieval.
-* **OpenAI GPT-4o-Mini** - High-performance large language model (LLM) serving as the central reasoning engine to generate grounded, factually-accurate legal answers.
-* **BAAI/bge-small-en-v1.5** - High-performance sentence embedding model producing dense 384-dimensional semantic vectors.
-* **GLiNER** - Advanced zero-shot named entity recognition (NER) model extracting flexible, open-vocabulary legal entities from text.
-* **GLiREL** - Zero-shot relation extraction model identifying structural and contextual connections between entities.
-* **NetworkX** - Powerful network modeling library managing the structure, nodes, and relational edges of the Knowledge Graph.
-* **PyVis** - Interactive visualization library generating dark-themed, physics-simulated HTML dynamic graphs.
-* **FastAPI** - High-performance, modern Python web framework powering the backend API and server-sent progress events.
-* **GitHub Actions** - Serverless automation engine executing automated indexing pipelines and benchmark workflows in the cloud.
-* **ChromaDB** - Lightweight, local serverless vector database used as the primary offline embedding store.
-* **Sentence Transformers** - PyTorch-based framework simplifying the generation of dense vector embeddings from chunked contract texts.
-
-
+* **MongoDB Atlas Vector Search** - Cloud-hosted vector database for scalable semantic similarity search.
+* **Groq (Llama 3.3 70B)** - High-performance LLM serving as the central reasoning engine.
+* **BAAI/bge-small-en-v1.5** - Sentence embedding model producing dense 384-dimensional semantic vectors.
+* **GLiNER** - Zero-shot named entity recognition (NER) model.
+* **GLiREL** - Zero-shot relation extraction model.
+* **NetworkX** - Network modeling library managing the Knowledge Graph.
+* **PyVis** - Interactive visualization library generating dark-themed HTML dynamic graphs.
+* **FastAPI** - Modern Python web framework powering the backend API.
+* **ChromaDB** - Lightweight local vector database for offline embedding storage.
+* **Sentence Transformers** - PyTorch-based framework for dense vector embeddings.
+* **GitHub Actions** - Automated CI/CD pipeline execution.

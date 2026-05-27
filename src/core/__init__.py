@@ -22,7 +22,10 @@ try:
 except ImportError:
     generate_interactive_graph = None
 
-from .data_loader import get_cuad_contracts
+try:
+    from .data_loader import get_cuad_contracts
+except ImportError:
+    get_cuad_contracts = None
 
 __all__ = [
     "LegalGraphRAG",

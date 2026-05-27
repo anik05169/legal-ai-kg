@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import hashlib
 import certifi
@@ -7,7 +8,9 @@ import torch
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 
-from core.data_loader import load_cuad_dataset
+# Ensure project root is in path when run as a standalone script
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from src.core.data_loader import load_cuad_dataset
 
 
 # =====================================================================

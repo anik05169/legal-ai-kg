@@ -17,8 +17,8 @@ def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 socket.getaddrinfo = patched_getaddrinfo
 
 # Add parent directory to path to ensure configs can be loaded if needed
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from core import config
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from src.core import config
 
 def main():
     parser = argparse.ArgumentParser(description="Test Legal AI RAG Pipeline with Groq.")
@@ -48,25 +48,25 @@ def main():
         sys.exit(1)
 
     print("==================================================")
-    print(" 🏛️  LEGAL AI — PIPELINE TEST RUNNER (GROQ)  🏛️")
+    print("      LEGAL AI - PIPELINE TEST RUNNER (GROQ)")
     print("==================================================")
-    print(f"🔎 User Query: '{args.query}'\n")
+    print(f"User Query: '{args.query}'\n")
 
     # --- 2. Hardware Acceleration ---
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"⚡ Device: [{device.upper()}]")
+    print(f"Device: [{device.upper()}]")
 
     # --- 3. Load Embedding Model ---
-    print("🧠 Loading embedding model...")
+    print("Loading embedding model...")
     embedder = SentenceTransformer(config.EMBEDDING_MODEL, device=device)
 
     # --- 4. Connect to MongoDB Atlas & Run Vector Search ---
-    print("📥 Connecting to MongoDB Atlas...")
+    print("Connecting to MongoDB Atlas...")
     mongo_client = MongoClient(mongo_uri, tlsCAFile=certifi.where())
     db = mongo_client["legal_rag"]
     collection = db["chunks"]
 
-    print("🔍 Fetching semantic chunks...")
+    print("Fetching semantic chunks...")
     query_embedding = embedder.encode([args.query], normalize_embeddings=True)[0].tolist()
 
     pipeline = [
@@ -103,13 +103,13 @@ def main():
         chunk_id = res.get("metadata", {}).get("chunk_id", res["_id"])
         retrieved_chunk_ids.add(chunk_id)
 
-    print(f"✅ Retrieved {len(retrieved_texts)} semantic chunks from MongoDB.")
+    print(f"Retrieved {len(retrieved_texts)} semantic chunks from MongoDB.")
 
     # --- 5. Optional Knowledge Graph Parsing ---
     extracted_triples = []
     kg_path = config.GRAPH_PATH
     if os.path.exists(kg_path):
-        print("📊 Loading Knowledge Graph data...")
+        print("Loading Knowledge Graph data...")
         try:
             with open(kg_path, "r", encoding="utf-8") as f:
                 G = nx.node_link_graph(json.load(f))
@@ -134,11 +134,11 @@ def main():
                     u_type = G.nodes[u].get('entity_type', 'Entity')
                     v_type = G.nodes[v].get('entity_type', 'Entity')
                     extracted_triples.append(f"[{u} ({u_type})] --({data['label']})--> [{v} ({v_type})]")
-            print(f"✅ Extracted {len(extracted_triples)} relation triples from Knowledge Graph.")
+            print(f"Extracted {len(extracted_triples)} relation triples from Knowledge Graph.")
         except Exception as e:
-            print(f"⚠️ Error reading/querying Knowledge Graph: {e}")
+            print(f"Error reading/querying Knowledge Graph: {e}")
     else:
-        print("💡 Note: No local Knowledge Graph file (legal_kg.json) found. Proceeding with semantic text context only.")
+        print("Note: No local Knowledge Graph file (legal_kg.json) found. Proceeding with semantic text context only.")
 
     # --- 6. Synthesize Context ---
     context_blocks = []
@@ -150,11 +150,11 @@ def main():
     final_context = "\n\n".join(context_blocks)
 
     if not final_context:
-        print("❌ No relevant context was found in the database. LLM response may be generic.")
+        print("No relevant context was found in the database. LLM response may be generic.")
         final_context = "No relevant context found."
 
     # --- 7. Call LLM (Groq) ---
-    print(f"🤖 Invoking Groq LLM ({config.GROQ_MODEL})...")
+    print(f"Invoking Groq LLM ({config.GROQ_MODEL})...")
     llm_client = OpenAI(
         base_url="https://api.groq.com/openai/v1",
         api_key=groq_api_key
@@ -184,11 +184,11 @@ def main():
         answer = response.choices[0].message.content.strip()
         
         print("\n" + "="*60)
-        print("📄 [CONTEXT HIGHLIGHTS]")
+        print("[CONTEXT HIGHLIGHTS]")
         for idx, text in enumerate(retrieved_texts[:2]):
             print(f"Excerpt #{idx+1}: {text[:150]}...")
             
-        print("\n🤖 [AI ASSISTANT RESPONSE via GROQ]")
+        print("\n[AI ASSISTANT RESPONSE via GROQ]")
         print(answer)
         print("="*60 + "\n")
         
