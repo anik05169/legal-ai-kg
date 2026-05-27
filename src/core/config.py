@@ -11,7 +11,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GLINER_MODEL = "urchade/gliner_medium-v2.1"
 GLIREL_MODEL = "jackboyla/glirel-large-v0"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-GROQ_MODEL = "llama-3.3-70b-versatile" 
+GROQ_MODEL = "llama-3.1-8b-instant" 
 REL_THRESHOLD = 0.4
 NER_THRESHOLD = 0.6
 
