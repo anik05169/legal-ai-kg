@@ -82,6 +82,22 @@ def main():
         print(f"❌ MongoDB Connection failed: {e}", flush=True)
         sys.exit(1)
 
+    # --- 3b. Pre-load Knowledge Graph nodes for fast per-question matching ---
+    kg_available = False
+    all_kg_nodes = []
+    kg_node_types = {}
+    try:
+        node_count = db["kg_nodes"].count_documents({})
+        if node_count > 0:
+            all_kg_nodes = list(db["kg_nodes"].find({}))
+            kg_node_types = {doc["_id"]: doc.get("entity_type", "Entity") for doc in all_kg_nodes}
+            kg_available = True
+            print(f"📊 Knowledge Graph loaded: {node_count} nodes available for hybrid retrieval.", flush=True)
+        else:
+            print("⚠️ kg_nodes collection is empty. Running in vector-only mode.", flush=True)
+    except Exception as e:
+        print(f"⚠️ Could not load Knowledge Graph: {e}. Running in vector-only mode.", flush=True)
+
     # --- 4. Initialize Groq Client ---
     print("Initializing Groq client...", flush=True)
     llm_client = Groq(api_key=groq_api_key)
@@ -125,14 +141,57 @@ def main():
             print(f"  ❌ MongoDB Search failed: {e}", flush=True)
             context_list = []
 
-        # B. Groq Completion
-        final_context = "=== LEGAL TEXT EXCERPTS ===\n" + "\n---\n".join(context_list) if context_list else "No relevant context found."
+        # B. Knowledge Graph lookup (hybrid retrieval)
+        extracted_triples = []
+        if kg_available:
+            try:
+                query_lower = question.lower()
+                matched_nodes = set()
+                is_date_query = any(w in query_lower for w in ["when", "date", "signed", "terminated", "term", "year", "time", "ended", "end"])
+
+                for doc in all_kg_nodes:
+                    node = doc["_id"]
+                    ent_type = doc.get("entity_type", "Entity")
+                    if isinstance(node, str) and len(node) > 4 and node.lower() in query_lower:
+                        matched_nodes.add(node)
+                    if is_date_query and ent_type in ["Date", "Year", "Notice Period"]:
+                        matched_nodes.add(node)
+
+                if matched_nodes:
+                    query_filter = {
+                        "$or": [
+                            {"source": {"$in": list(matched_nodes)}},
+                            {"target": {"$in": list(matched_nodes)}}
+                        ]
+                    }
+                    edges = list(db["kg_edges"].find(query_filter).limit(20))
+                    for edge in edges:
+                        u = edge["source"]
+                        v = edge["target"]
+                        label = edge.get("label", "RELATED_TO")
+                        u_type = kg_node_types.get(u, "Entity")
+                        v_type = kg_node_types.get(v, "Entity")
+                        extracted_triples.append(f"[{u} ({u_type})] --({label})--> [{v} ({v_type})]")
+                    
+                    if extracted_triples:
+                        print(f"  📊 KG: {len(extracted_triples)} graph triples matched.", flush=True)
+            except Exception as e:
+                print(f"  ⚠️ KG lookup error: {e}", flush=True)
+
+        # C. Assemble hybrid context
+        context_blocks = []
+        if extracted_triples:
+            context_blocks.append("=== STRUCTURED KNOWLEDGE GRAPH FACTS ===\n" + "\n".join(extracted_triples))
+        if context_list:
+            context_blocks.append("=== LEGAL TEXT EXCERPTS ===\n" + "\n---\n".join(context_list))
+        
+        final_context = "\n\n".join(context_blocks) if context_blocks else "No relevant context found."
         
         system_prompt = (
             "You are an expert legal AI assistant. Your job is to answer the user's question clearly "
             "and naturally using ONLY the provided context.\n"
             "RULES:\n"
-            "1. Read the provided LEGAL TEXT EXCERPTS.\n"
+            "1. Read the provided KNOWLEDGE GRAPH FACTS and LEGAL TEXT EXCERPTS.\n"
             "2. Answer in a helpful, conversational tone.\n"
             "3. If the answer is not in the text, simply state that the provided document does not contain the answer.\n"
             "4. Do not provide external legal advice or hallucinate outside knowledge."
@@ -189,7 +248,9 @@ def main():
         f.write("## Metadata\n")
         f.write(f"- **Generation LLM**: `llama-3.1-8b-instant`\n")
         f.write(f"- **Vector Index**: MongoDB Atlas (`legal_rag.chunks`)\n")
-        f.write(f"- **Total Questions**: 22\n\n")
+        f.write(f"- **Knowledge Graph**: MongoDB Atlas (`legal_rag.kg_nodes` + `legal_rag.kg_edges`)\n")
+        f.write(f"- **Retrieval Mode**: Hybrid (Vector + Graph)\n")
+        f.write(f"- **Total Questions**: {len(records)}\n\n")
         
         f.write("## Questions & Answers\n\n")
         for rec in records:
