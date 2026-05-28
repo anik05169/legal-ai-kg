@@ -1,7 +1,7 @@
 import sys
-from core.kg_indexer import build_infrastructure
-from core.visualize_kg import generate_interactive_graph
-from core.rag_pipeline import LegalGraphRAG
+from src.core.kg_indexer import build_infrastructure
+from src.core.visualize_kg import generate_interactive_graph
+from src.core.rag_pipeline import LegalGraphRAG
 
 def main():
     print("==================================================")
@@ -10,7 +10,8 @@ def main():
     
     # 1. Build Infrastructure (Vector DB + Knowledge Graph)
     print("\n[STEP 1/3] Building Infrastructure (VectorDB + KG)...")
-    build_infrastructure()
+    for step in build_infrastructure():
+        pass
     
     # 2. Visualize Graph
     print("\n[STEP 2/3] Generating Knowledge Graph Visualization...")

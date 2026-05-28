@@ -8,10 +8,10 @@ import json
 import uuid
 from collections import defaultdict
 
-from core.kg_indexer import build_infrastructure
-from core.visualize_kg import generate_interactive_graph
-from core.rag_pipeline import LegalGraphRAG
-from core.data_loader import get_cuad_contracts
+from src.core.kg_indexer import build_infrastructure
+from src.core.visualize_kg import generate_interactive_graph
+from src.core.rag_pipeline import LegalGraphRAG
+from src.core.data_loader import get_cuad_contracts
 
 app = FastAPI(title="Legal AI GraphRAG API")
 

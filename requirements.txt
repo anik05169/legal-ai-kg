@@ -11,11 +11,32 @@ pyvis
 chromadb
 sentence-transformers
 
+# MongoDB Atlas
+pymongo[srv]
+certifi
+
+# PyTorch (CPU-only is fine for CI)
+torch
+
 # LLM Generation
-openai
+groq
+
 
 # Hugging Face Datasets
 datasets
+ragas
+langchain<0.3.0
+langchain-community<0.3.0
+
+langchain-google-vertexai
+langchain-groq
+langchain-google-genai
+pandas
+
+
+tqdm
+
+
 
 # Web Backend
 fastapi

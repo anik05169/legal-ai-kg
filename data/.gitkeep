@@ -1,0 +1,2 @@
+# Keep data directory tracked by git so it exists in GitHub Actions.
+# Put your CUADv1.zip or CUADv1.json here.
