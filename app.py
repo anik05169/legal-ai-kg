@@ -30,6 +30,11 @@ class ChatRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
 
+@app.get("/api/health")
+def health_check():
+    """Lightweight GET endpoint for cloud health checks."""
+    return {"status": "healthy"}
+
 @app.get("/api/build/stream")
 def build_pipeline_stream():
     def event_generator():
