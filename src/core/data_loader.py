@@ -1,7 +1,6 @@
 import os
 import json
 import zipfile
-from datasets import load_dataset
 
 class LocalCUADDataset:
     """Wraps a list of parsed JSON dataset items to mimic HuggingFace's Dataset interface."""
@@ -55,6 +54,7 @@ def load_cuad_dataset():
             
     # 3. Fallback to Hugging Face Datasets Hub
     print("No local dataset found in 'data/'. Falling back to Hugging Face...")
+    from datasets import load_dataset
     return load_dataset("theatticusproject/cuad-qa", split="train", trust_remote_code=True)
 
 def _parse_squad_json(cuad_data):
