@@ -1,9 +1,6 @@
-# Extraction Models
-gliner
-glirel
-spacy
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# Graph Data Structure
+# Graph Data Structure & Visualization
 networkx
 pyvis
 
@@ -11,38 +8,21 @@ pyvis
 chromadb
 sentence-transformers
 
-# MongoDB Atlas
+# PyTorch (CPU-only fetched via CPU index above)
+torch
+
+# MongoDB Atlas Secure Connection
 pymongo[srv]
 certifi
-
-# PyTorch (CPU-only is fine for CI)
-torch
 
 # LLM Generation
 groq
 
-
-# Hugging Face Datasets
-datasets
-ragas
-langchain<0.3.0
-langchain-community<0.3.0
-
-langchain-google-vertexai
-langchain-groq
-langchain-google-genai
-pandas
-
-
-tqdm
-
-
-
-# Web Backend
+# Web Backend & Utilities
 fastapi
 uvicorn
-
-# Logging & Environment
-loguru
 python-dotenv
-huggingface_hub
+pydantic
+pandas
+tqdm
+jinja2
